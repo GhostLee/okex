@@ -133,7 +133,7 @@ func (c *Private) Process(data []byte, e *events.Basic) bool {
 				if c.aCh != nil {
 					c.aCh <- &e
 				}
-				c.StructuredEventChan <- e
+				//c.StructuredEventChan <- e
 			}()
 			return true
 		case "positions":
@@ -146,7 +146,7 @@ func (c *Private) Process(data []byte, e *events.Basic) bool {
 				if c.pCh != nil {
 					c.pCh <- &e
 				}
-				c.StructuredEventChan <- e
+				//c.StructuredEventChan <- e
 			}()
 			return true
 		case "balance_and_position":
@@ -159,7 +159,7 @@ func (c *Private) Process(data []byte, e *events.Basic) bool {
 				if c.bnpCh != nil {
 					c.bnpCh <- &e
 				}
-				c.StructuredEventChan <- e
+				//c.StructuredEventChan <- e
 			}()
 			return true
 		case "orders":
@@ -172,7 +172,7 @@ func (c *Private) Process(data []byte, e *events.Basic) bool {
 				if c.oCh != nil {
 					c.oCh <- &e
 				}
-				c.StructuredEventChan <- e
+				//c.StructuredEventChan <- e
 			}()
 			return true
 		}
