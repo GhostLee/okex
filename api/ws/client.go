@@ -34,7 +34,7 @@ type ClientWs struct {
 	apiKey        string
 	secretKey     []byte
 	passphrase    string
-	lastTransmit  map[bool]*time.Time
+	lastTransmit  sync.Map
 	mu            map[bool]*sync.RWMutex
 	AuthRequested *time.Time
 	Authorized    bool
@@ -54,6 +54,9 @@ const (
 // NewClient returns a pointer to a fresh ClientWs
 func NewClient(ctx context.Context, apiKey, secretKey, passphrase string, url map[bool]okex.BaseURL) *ClientWs {
 	ctx, cancel := context.WithCancel(ctx)
+	//lastTransmit := sync.Map{}
+	//lastTransmit.Store(true, nil)
+	//lastTransmit.Store(false, nil)
 	c := &ClientWs{
 		apiKey:     apiKey,
 		secretKey:  []byte(secretKey),
@@ -66,9 +69,11 @@ func NewClient(ctx context.Context, apiKey, secretKey, passphrase string, url ma
 		//StructuredEventChan: make(chan interface{}),
 		//RawEventChan:        make(chan *events.Basic),
 		conn:         make(map[bool]*websocket.Conn),
-		lastTransmit: make(map[bool]*time.Time),
+		lastTransmit: sync.Map{},
 		mu:           map[bool]*sync.RWMutex{true: {}, false: {}},
 	}
+	c.lastTransmit.Store(true, nil)
+	c.lastTransmit.Store(false, nil)
 	c.Private = NewPrivate(c)
 	c.Public = NewPublic(c)
 	c.Trade = NewTrade(c)
@@ -273,16 +278,17 @@ func (c *ClientWs) sender(p bool) error {
 				return err
 			}
 			now := time.Now()
-			c.lastTransmit[p] = &now
+			c.lastTransmit.Store(p, &now)
 			c.mu[p].RUnlock()
 			if err := w.Close(); err != nil {
 				return err
 			}
 		case <-ticker.C:
-			c.mu[p].RLock()
-			lastTransmit := c.lastTransmit[p]
-			c.mu[p].RUnlock()
-			if c.conn[p] != nil && (lastTransmit == nil || (lastTransmit != nil && time.Since(*lastTransmit) > PingPeriod)) {
+			//c.mu[p].RLock()
+			lastTransmitAny, ok := c.lastTransmit.Load(p)
+			lastTransmit := lastTransmitAny.(*time.Time)
+			//c.mu[p].RUnlock()
+			if c.conn[p] != nil && ok && (lastTransmit == nil || (lastTransmit != nil && time.Since(*lastTransmit) > PingPeriod)) {
 				go func() {
 					c.sendChan[p] <- []byte("ping")
 				}()
@@ -314,9 +320,10 @@ func (c *ClientWs) receiver(p bool) error {
 			}
 			c.mu[p].RUnlock()
 			now := time.Now()
-			c.mu[p].Lock()
-			c.lastTransmit[p] = &now
-			c.mu[p].Unlock()
+			//c.mu[p].Lock()
+			//c.lastTransmit[p] = &now
+			c.lastTransmit.Store(p, &now)
+			//c.mu[p].Unlock()
 			if mt == websocket.TextMessage && string(data) != "pong" {
 				e := &events.Basic{}
 				if err := json.Unmarshal(data, &e); err != nil {
